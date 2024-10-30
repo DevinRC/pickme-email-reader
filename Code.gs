@@ -46,6 +46,8 @@ function main() {
       }
     });
 
+    var paymentMethod = $('#trip-details-outer > tbody > tr:nth-child(4) > td > table > tbody > tr:nth-child(2) > td:nth-child(2) > div').text().trim();
+
     // Write to Sheet
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     var startRow = getNextUsableRow(sheet);
@@ -83,8 +85,9 @@ function main() {
 
     sheet.getRange(startRow, 11, numRows, 1).merge().setValue(total);
     sheet.getRange(startRow, 12, numRows, 1).merge().setFormula(`=SUM(G${orderStartRow}:G${orderEndRow}, J${orderStartRow}:J${orderEndRow})`);
+    sheet.getRange(startRow, 13, numRows, 1).merge().setValue(paymentMethod);
 
-    sheet.getRange(orderStartRow, 1, orderEndRow - orderStartRow + 1, 12).setBorder(true, true, true, true, null, null);
+    sheet.getRange(orderStartRow, 1, orderEndRow - orderStartRow + 1, 13).setBorder(true, true, true, true, null, null);
     sheet.getRange(orderStartRow, 4, orderEndRow - orderStartRow + 1, 4).setBorder(null, true, null, true, null, null);
     sheet.getRange(orderStartRow, 8, orderEndRow - orderStartRow + 1, 3).setBorder(null, true, null, true, null, null);
 
@@ -123,33 +126,52 @@ function initNewSheet() {
     "Value",
     "Effective Adjustment Value",
     "Total",
-    "Effective Total to Claim"
+    "Effective Total to Claim",
+    "Payment Method"
   ];
   sheet.appendRow(headerRow);
 
   var headerRange = sheet.getRange(1, 1, 1, headerRow.length);
 
+  // Text Formatting
   headerRange.setFontWeight("bold");
   headerRange.setHorizontalAlignment("center");
   headerRange.setVerticalAlignment("middle");
   headerRange.setWrap(true);
 
+  // Number Formats
   var currencyColumns = [6, 7, 9, 10];
   currencyColumns.forEach(function (column) {
     var range = sheet.getRange(2, column, sheet.getMaxRows() - 1);
     range.setNumberFormat("LKR #,##0.00");
   });
 
-  var centerAlignColumns = [1, 2, 3, 11, 12]
+  // Cell Alignments
+  var centerAlignColumns = [1, 2, 3, 11, 12, 13]
   centerAlignColumns.forEach(function (column) {
     var range = sheet.getRange(2, column, sheet.getMaxRows() - 1);
     range.setHorizontalAlignment("center");
     range.setVerticalAlignment("middle");
   })
 
+  // Borders
   sheet.getRange(1, 4, 1, 4).setBorder(null, true, null, true, null, null); // Claim -- Effective Price to Claim
   sheet.getRange(1, 8, 1, 3).setBorder(null, true, null, true, null, null); // Adjustment -- Effective Adjustment Value
-  sheet.getRange(1, 12, 1, 1).setBorder(null, null, null, true, null, null); // Effective Total to Claim
+  sheet.getRange(1, 13, 1, 1).setBorder(null, null, null, true, null, null); // Effective Total to Claim
 
+  // Row Freezing
   sheet.setFrozenRows(1);
+
+  // Conditional Formatting
+  var rules = sheet.getConditionalFormatRules()
+
+  var paymentMethodConditionalFormatRange = sheet.getRange("K2:M")
+  var paymentMethodConditionalFormatRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied("=$M2='Cash'")
+    .setBackground("#b7e1cd")
+    .setRanges([paymentMethodConditionalFormatRange])
+    .build()
+
+  rules.push(paymentMethodConditionalFormatRule);
+  sheet.setConditionalFormatRules(rules);
 }
