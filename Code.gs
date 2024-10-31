@@ -1,6 +1,11 @@
+var spreadsheet = SpreadsheetApp.openById("");
+var sheet = spreadsheet.getSheetByName("")
+
 function main() {
-  var threads = GmailApp.search("label:pickme ")
-  Logger.log("Threads in PickMe Label: " + threads.length);
+  var query = "{\"PickMe delivery email receipt for\"} after:2024/10/01 before:2024/11/01  ";
+  var threads = GmailApp.search(query)
+  threads.reverse();
+  Logger.log("Threads in Search: " + threads.length);
 
   for (var i = 0; i < threads.length; i++) {
     var content = threads[i].getMessages()[0].getBody()
@@ -8,8 +13,8 @@ function main() {
 
     var orderId = $('#main_table > tbody > tr:nth-child(1) > td > table > tbody > tr:nth-child(1) > td:nth-child(2) > div').text().split("-")[1].trim();
     var restaurantName = $('#service-banner > tbody > tr:nth-child(3) > td > div').text().trim();
-    var date = $('#main_table > tbody > tr:nth-child(1) > td > table > tbody > tr:nth-child(2) > td > div').text().trim()
-    var total = $('#trip-details-outer > tbody > tr:nth-child(1) > td > table > tbody > tr > td:nth-child(2) > div').text().trim()
+    var date = threads[i].getMessages()[0].getDate();
+    var total = $('#trip-details-outer > tbody > tr:nth-child(1) > td > table > tbody > tr > td:nth-child(2) > div').text().trim().replace(/[^0-9.]/g, '')
 
     var parent = $('#trip-details-outer > tbody > tr:nth-child(3) > td > table > tbody > tr');
 
@@ -49,7 +54,6 @@ function main() {
     var paymentMethod = $('#trip-details-outer > tbody > tr:nth-child(4) > td > table > tbody > tr:nth-child(2) > td:nth-child(2) > div').text().trim();
 
     // Write to Sheet
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     var startRow = getNextUsableRow(sheet);
     var numRows = Math.max(noOfItems, Object.keys(adjustments).length);
 
@@ -83,7 +87,7 @@ function main() {
       sheet.getRange(startRow + l, 10).setFormula(`=I${startRow + l} * (SUM(G${orderStartRow}:G${orderEndRow}) / SUM(F${orderStartRow}:F${orderEndRow}))`);
     }
 
-    sheet.getRange(startRow, 11, numRows, 1).merge().setValue(total);
+    sheet.getRange(startRow, 11, numRows, 1).merge().setValue(parseFloat(total));
     sheet.getRange(startRow, 12, numRows, 1).merge().setFormula(`=SUM(G${orderStartRow}:G${orderEndRow}, J${orderStartRow}:J${orderEndRow})`);
     sheet.getRange(startRow, 13, numRows, 1).merge().setValue(paymentMethod);
 
@@ -91,7 +95,7 @@ function main() {
     sheet.getRange(orderStartRow, 4, orderEndRow - orderStartRow + 1, 4).setBorder(null, true, null, true, null, null);
     sheet.getRange(orderStartRow, 8, orderEndRow - orderStartRow + 1, 3).setBorder(null, true, null, true, null, null);
 
-    console.log("Completed write for:", restaurantName, ", ID:", orderId, "- ", noOfItems, " items")
+    console.log(`[${i + 1}/${threads.length}] Completed write for: ${restaurantName}, ID: ${orderId} - ${noOfItems} items`)
   }
 }
 
@@ -105,12 +109,11 @@ function getNextUsableRow(sheet) {
     nextUsableRow = range.getRow() + 1
   }
 
-  console.log("Next Usable Row:", nextUsableRow);
+  // console.log("Next Usable Row:", nextUsableRow);
   return nextUsableRow;
 }
 
 function initNewSheet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   sheet.clear();
   sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).removeCheckboxes();
 
@@ -139,8 +142,15 @@ function initNewSheet() {
   headerRange.setVerticalAlignment("middle");
   headerRange.setWrap(true);
 
+  // Date Formats
+  var dateColumns = [3]; // Replace with your specific date columns
+  dateColumns.forEach(function (column) {
+    var range = sheet.getRange(2, column, sheet.getMaxRows() - 1);
+    range.setNumberFormat("dd MMM yyyy hh:mm AM/PM");
+  });
+
   // Number Formats
-  var currencyColumns = [6, 7, 9, 10];
+  var currencyColumns = [6, 7, 9, 10, 11];
   currencyColumns.forEach(function (column) {
     var range = sheet.getRange(2, column, sheet.getMaxRows() - 1);
     range.setNumberFormat("LKR #,##0.00");
@@ -163,11 +173,11 @@ function initNewSheet() {
   sheet.setFrozenRows(1);
 
   // Conditional Formatting
-  var rules = sheet.getConditionalFormatRules()
+  var rules = []; // Reset existing rules
 
   var paymentMethodConditionalFormatRange = sheet.getRange("K2:M")
   var paymentMethodConditionalFormatRule = SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied("=$M2='Cash'")
+    .whenFormulaSatisfied("=$M2=\"Cash\"")
     .setBackground("#b7e1cd")
     .setRanges([paymentMethodConditionalFormatRange])
     .build()
