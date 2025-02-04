@@ -172,16 +172,26 @@ function initNewSheet() {
   // Row Freezing
   sheet.setFrozenRows(1);
 
-  // Conditional Formatting
+  // Conditional Formatting Rules
   var rules = []; // Reset existing rules
 
+  // Rule 1: Highlight Cash
   var paymentMethodConditionalFormatRange = sheet.getRange("K2:M")
   var paymentMethodConditionalFormatRule = SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied("=$M2=\"Cash\"")
-    .setBackground("#b7e1cd")
+    .setBackground("#b7e1cd") // Light green
     .setRanges([paymentMethodConditionalFormatRange])
     .build()
 
+  // Rule 2: Highlight duplicate IDs
+  var duplicateIDRange = sheet.getRange("A2:A");
+  var duplicateIDRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied("=COUNTIF(A:A, A2) > 1")
+    .setBackground("#ff9999") // Light red
+    .setRanges([duplicateIDRange])
+    .build();
+
   rules.push(paymentMethodConditionalFormatRule);
+  rules.push(duplicateIDRule);
   sheet.setConditionalFormatRules(rules);
 }
